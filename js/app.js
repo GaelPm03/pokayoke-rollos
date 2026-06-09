@@ -49,6 +49,7 @@
     document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
     $(id).classList.add('activa');
     if (id === 'pantalla-historial') renderHistorial();
+    if (id === 'pantalla-escaneo') actualizarUIPaso(); // refresca el selector de líneas
   }
 
   /* ================== Captura global de la pistola ================== */
@@ -140,23 +141,52 @@
     }
   }
 
-  /* ================== Flujo de escaneo (poka-yoke) ================== */
+  /* ================== Flujo: selector de línea + escaneo de rollos ================== */
+  function renderSelectorLineas() {
+    const cont = $('selector-lineas');
+    cont.innerHTML = '';
+    const lineas = Datos.config.estaciones;
+    if (!lineas.length) {
+      cont.innerHTML = '<p class="lista-vacia">No hay líneas registradas.<br>Entra a ⚙️ Administración → Líneas para agregarlas.</p>';
+      return;
+    }
+    lineas.forEach(l => {
+      const btn = document.createElement('button');
+      btn.className = 'btn-linea';
+      btn.innerHTML = `${l.codigo}${l.nombre ? `<span class="linea-nombre">${l.nombre}</span>` : ''}`;
+      btn.addEventListener('click', () => seleccionarLinea(l));
+      cont.appendChild(btn);
+    });
+  }
+
+  function seleccionarLinea(linea) {
+    estacionActual = linea;
+    paso = 'rollo';
+    sonidoOk();
+    actualizarUIPaso();
+  }
+
   function actualizarUIPaso() {
     const p1 = $('paso-1'), p2 = $('paso-2');
     if (paso === 'estacion') {
       p1.classList.add('activo'); p1.classList.remove('completado');
       p2.classList.remove('activo', 'completado');
-      $('instruccion-escaneo').textContent = 'Dispara al código de la ESTACIÓN';
-      $('zona-sub').textContent = 'Apunta la pistola a la etiqueta de la máquina y dispara';
-      $('banner-estacion-fija').classList.add('oculto');
+      $('instruccion-escaneo').textContent = 'Selecciona la LÍNEA';
+      renderSelectorLineas();
+      $('selector-lineas').classList.remove('oculto');
+      $('linea-actual').classList.add('oculto');
+      $('zona-escaneo').classList.add('oculto');
     } else {
       p1.classList.remove('activo'); p1.classList.add('completado');
       p2.classList.add('activo');
-      $('instruccion-escaneo').textContent = 'Ahora dispara al código del ROLLO';
+      $('instruccion-escaneo').textContent = 'Dispara al código del ROLLO';
+      $('selector-lineas').classList.add('oculto');
+      // línea activa EN GRANDE
+      $('linea-actual-codigo').textContent = estacionActual.codigo;
+      $('linea-actual-nombre').textContent = estacionActual.nombre || '';
+      $('linea-actual').classList.remove('oculto');
+      $('zona-escaneo').classList.remove('oculto');
       $('zona-sub').textContent = 'Apunta la pistola a la etiqueta del rollo y dispara';
-      const nombre = estacionActual.nombre ? ` — ${estacionActual.nombre}` : '';
-      $('texto-estacion-fija').textContent = `📍 Estación: ${estacionActual.codigo}${nombre}`;
-      $('banner-estacion-fija').classList.remove('oculto');
     }
     $('zona-texto').textContent = 'Listo para escanear';
     $('aviso-escaneo').classList.add('oculto');
@@ -177,26 +207,23 @@
     const tipo = Datos.clasificarCodigo(codigo);
 
     if (paso === 'estacion') {
+      // aún no hay línea seleccionada: solo se acepta un código de línea
+      // (por si las líneas también tienen etiqueta con código de barras)
       if (tipo === 'estacion') {
-        estacionActual = Datos.buscarEstacion(codigo);
-        paso = 'rollo';
-        sonidoOk();
-        actualizarUIPaso();
-      } else if (tipo === 'rollo') {
-        mostrarAviso('⚠️ Eso es un ROLLO. Primero dispara a la etiqueta de la MÁQUINA / estación.');
+        seleccionarLinea(Datos.buscarEstacion(codigo));
       } else {
-        mostrarAviso('⚠️ Código no registrado como estación. Verifica o avisa a tu supervisor.');
+        mostrarAviso('⚠️ Primero SELECCIONA LA LÍNEA tocando su botón en pantalla.');
       }
       return;
     }
 
     // paso === 'rollo'
     if (tipo === 'estacion') {
-      // disparó a otra estación: la cambiamos (caso común al moverse de máquina)
+      // disparó el código de otra línea: la cambiamos
       estacionActual = Datos.buscarEstacion(codigo);
       sonidoAviso();
       actualizarUIPaso();
-      toast(`Estación cambiada a ${estacionActual.codigo}`);
+      toast(`Línea cambiada a ${estacionActual.codigo}`);
       return;
     }
 
@@ -230,7 +257,7 @@
       }).join(', ');
       $('resultado-detalle').innerHTML =
         `Este rollo (${v.material.descripcion || v.material.codigo})<br>NO va en ${nombreEst}.<br>` +
-        (destinos ? `Su lugar correcto es:<br><b>${destinos}</b>` : '<b>No tiene estación asignada</b>');
+        (destinos ? `Su lugar correcto es:<br><b>${destinos}</b>` : '<b>No tiene línea asignada</b>');
       sonidoError();
     } else {
       pant.classList.add('desconocido');
@@ -295,7 +322,7 @@
     mats.forEach(m => {
       const li = document.createElement('li');
       const tag = m.tipoCoincidencia === 'prefijo' ? '<span class="item-tag">PREFIJO</span>' : '';
-      const ests = m.estaciones.length ? m.estaciones.join(', ') : '⚠️ sin estaciones';
+      const ests = m.estaciones.length ? m.estaciones.join(', ') : '⚠️ sin líneas';
       li.innerHTML = `<div class="item-codigo">${m.codigo}${tag}</div>
         <div class="item-detalle">${m.descripcion || '(sin descripción)'} → ${ests}</div>`;
       li.addEventListener('click', () => abrirModal('material', m.codigo));
@@ -307,7 +334,7 @@
     const ul = $('lista-estaciones');
     ul.innerHTML = '';
     const ests = Datos.config.estaciones;
-    if (!ests.length) { ul.innerHTML = '<li class="lista-vacia">Sin estaciones. Agrega la primera ☝️</li>'; return; }
+    if (!ests.length) { ul.innerHTML = '<li class="lista-vacia">Sin líneas. Agrega la primera ☝️</li>'; return; }
     ests.forEach(e => {
       const li = document.createElement('li');
       const nMat = Datos.config.materiales.filter(m => m.estaciones.map(Datos.normalizar).includes(Datos.normalizar(e.codigo))).length;
@@ -347,7 +374,7 @@
       const cont = $('modal-estaciones');
       cont.innerHTML = '';
       if (!Datos.config.estaciones.length) {
-        cont.innerHTML = '<p class="lista-vacia">Primero registra estaciones en la pestaña "Estaciones".</p>';
+        cont.innerHTML = '<p class="lista-vacia">Primero registra líneas en la pestaña "Líneas".</p>';
       }
       Datos.config.estaciones.forEach(e => {
         const marcado = m && m.estaciones.map(Datos.normalizar).includes(Datos.normalizar(e.codigo));
@@ -356,8 +383,8 @@
         cont.appendChild(label);
       });
     } else {
-      $('modal-titulo').textContent = codigoOriginal ? 'Editar estación' : 'Nueva estación';
-      $('modal-hint-codigo').textContent = '(de la máquina)';
+      $('modal-titulo').textContent = codigoOriginal ? 'Editar línea' : 'Nueva línea';
+      $('modal-hint-codigo').textContent = '(de la línea)';
       $('modal-solo-material').classList.add('oculto');
       const e = codigoOriginal ? Datos.buscarEstacion(codigoOriginal) : null;
       if (e) {
@@ -554,7 +581,7 @@
         const res = Datos.importarCSV(lector.result);
         if (res.ok) {
           renderAdmin();
-          toast(`✓ Importado: ${res.materiales} materiales, ${res.estaciones} estaciones` + (res.errores ? ` (${res.errores} líneas con error)` : ''));
+          toast(`✓ Importado: ${res.materiales} materiales, ${res.estaciones} líneas` + (res.errores ? ` (${res.errores} renglones con error)` : ''));
         } else toast('⚠️ ' + res.error);
         e.target.value = '';
       };
@@ -571,7 +598,7 @@
       if (confirm('¿Borrar todo el historial de escaneos?')) { Datos.borrarHistorial(); toast('Historial borrado'); }
     });
     $('btn-borrar-todo').addEventListener('click', () => {
-      if (confirm('⚠️ Se borrarán TODOS los materiales, estaciones e historial de esta PC. ¿Continuar?')) {
+      if (confirm('⚠️ Se borrarán TODOS los materiales, líneas e historial de esta PC. ¿Continuar?')) {
         Datos.borrarTodo();
         renderAdmin();
         toast('Configuración borrada');

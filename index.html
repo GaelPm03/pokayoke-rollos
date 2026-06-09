@@ -21,24 +21,29 @@
 <!-- ============ PANTALLA DE ESCANEO (principal) ============ -->
 <main id="pantalla-escaneo" class="pantalla activa">
 
-  <div id="banner-estacion-fija" class="oculto">
-    <span id="texto-estacion-fija"></span>
-    <button id="btn-soltar-estacion">Cambiar estación</button>
-  </div>
-
   <div id="indicador-pasos">
-    <div id="paso-1" class="paso activo"><span class="paso-num">1</span> ESTACIÓN</div>
+    <div id="paso-1" class="paso activo"><span class="paso-num">1</span> LÍNEA</div>
     <div class="paso-flecha">→</div>
     <div id="paso-2" class="paso"><span class="paso-num">2</span> ROLLO</div>
   </div>
 
-  <h2 id="instruccion-escaneo">Dispara al código de la ESTACIÓN</h2>
+  <h2 id="instruccion-escaneo">Selecciona la LÍNEA</h2>
 
-  <!-- Zona de escaneo: la pistola teclea aquí sin necesidad de clic -->
-  <div id="zona-escaneo">
+  <!-- Paso 1: selector de línea (botones grandes) -->
+  <div id="selector-lineas"></div>
+
+  <!-- Paso 2: línea activa EN GRANDE + zona de escaneo de rollos -->
+  <div id="linea-actual" class="oculto">
+    <div id="linea-actual-etiqueta">LÍNEA</div>
+    <div id="linea-actual-codigo"></div>
+    <div id="linea-actual-nombre"></div>
+    <button id="btn-soltar-estacion">⇄ Cambiar de línea</button>
+  </div>
+
+  <div id="zona-escaneo" class="oculto">
     <div id="zona-icono">🔫</div>
     <div id="zona-texto">Listo para escanear</div>
-    <div id="zona-sub">Apunta la pistola al código de barras y dispara</div>
+    <div id="zona-sub">Apunta la pistola al código del rollo y dispara</div>
   </div>
 
   <div id="aviso-escaneo" class="oculto"></div>
@@ -79,7 +84,7 @@
   <div id="admin-contenido" class="oculto">
     <nav id="admin-tabs">
       <button class="tab activa" data-tab="tab-materiales">Materiales</button>
-      <button class="tab" data-tab="tab-estaciones">Estaciones</button>
+      <button class="tab" data-tab="tab-estaciones">Líneas</button>
       <button class="tab" data-tab="tab-sync">Sincronizar</button>
       <button class="tab" data-tab="tab-ajustes">Ajustes</button>
     </nav>
@@ -90,7 +95,7 @@
     </div>
 
     <div id="tab-estaciones" class="tab-panel">
-      <button id="btn-nueva-estacion" class="btn-grande btn-primario">＋ Agregar estación</button>
+      <button id="btn-nueva-estacion" class="btn-grande btn-primario">＋ Agregar línea</button>
       <ul id="lista-estaciones" class="lista-admin"></ul>
     </div>
 
@@ -162,7 +167,7 @@
         <option value="exacto">Código exacto</option>
         <option value="prefijo">Prefijo (el rollo EMPIEZA con este código)</option>
       </select>
-      <label>Estaciones autorizadas</label>
+      <label>Líneas autorizadas</label>
       <div id="modal-estaciones" class="lista-checkboxes"></div>
     </div>
 
