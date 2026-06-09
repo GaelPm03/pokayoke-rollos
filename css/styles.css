@@ -45,7 +45,7 @@ html, body {
 }
 
 /* ====== Pantallas ====== */
-.pantalla { display: none; padding: 16px; max-width: 560px; margin: 0 auto; }
+.pantalla { display: none; padding: 16px; max-width: 720px; margin: 0 auto; }
 .pantalla.activa { display: block; }
 
 /* ====== Indicador de pasos ====== */
@@ -87,24 +87,30 @@ html, body {
   line-height: 1.3;
 }
 
-/* ====== Lector de cámara ====== */
-#contenedor-lector {
+/* ====== Zona de escaneo (pistola) ====== */
+#zona-escaneo {
+  border: 3px dashed var(--primario);
   border-radius: var(--radio);
-  overflow: hidden;
-  background: #000;
-  min-height: 280px;
-  position: relative;
-}
-#lector { width: 100%; }
-#lector video { width: 100% !important; border-radius: var(--radio); }
-#lector-apagado {
-  position: absolute;
-  inset: 0;
+  background: var(--panel);
+  min-height: 260px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+  transition: background 0.15s, border-color 0.15s;
 }
-#lector-sync, #modal-lector { border-radius: var(--radio); overflow: hidden; margin-top: 10px; }
+#zona-icono { font-size: 4rem; line-height: 1; }
+#zona-texto { font-size: 1.5rem; font-weight: 800; }
+#zona-sub { color: var(--texto-suave); font-size: 1.05rem; }
+#zona-escaneo.lectura {
+  background: #2d4a6b;
+  border-color: #7db8ff;
+  animation: pulso-lectura 0.35s ease-out;
+}
+@keyframes pulso-lectura { 0% { transform: scale(1); } 40% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
 /* ====== Aviso de validación cruzada (escaneó el código equivocado) ====== */
 #aviso-escaneo {
@@ -244,6 +250,24 @@ input[type="text"], input[type="password"], select {
   max-width: 480px;
   margin-top: 34px;
 }
+#resultado-hint { color: rgba(255,255,255,0.75); font-size: 1.05rem; margin-top: 12px; }
+
+/* ====== Textareas de sincronización ====== */
+textarea {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-family: Consolas, monospace;
+  border-radius: 10px;
+  border: 1px solid #44446a;
+  background: var(--panel);
+  color: var(--texto);
+  margin-top: 8px;
+  resize: vertical;
+  word-break: break-all;
+}
+#contenedor-codigo-sync { margin-top: 10px; }
+code { background: var(--panel); padding: 2px 6px; border-radius: 6px; }
 
 /* ====== Admin ====== */
 #admin-candado { text-align: center; padding-top: 30px; }

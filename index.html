@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1a1a2e">
 <title>Poka-Yoke Rollos</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="iconos/icono-192.png">
-<link rel="apple-touch-icon" href="iconos/icono-192.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -33,19 +32,19 @@
     <div id="paso-2" class="paso"><span class="paso-num">2</span> ROLLO</div>
   </div>
 
-  <h2 id="instruccion-escaneo">Escanea el código de la ESTACIÓN</h2>
+  <h2 id="instruccion-escaneo">Dispara al código de la ESTACIÓN</h2>
 
-  <div id="contenedor-lector">
-    <div id="lector"></div>
-    <div id="lector-apagado">
-      <button id="btn-iniciar-camara" class="btn-grande btn-primario">📷 Iniciar cámara</button>
-    </div>
+  <!-- Zona de escaneo: la pistola teclea aquí sin necesidad de clic -->
+  <div id="zona-escaneo">
+    <div id="zona-icono">🔫</div>
+    <div id="zona-texto">Listo para escanear</div>
+    <div id="zona-sub">Apunta la pistola al código de barras y dispara</div>
   </div>
 
   <div id="aviso-escaneo" class="oculto"></div>
 
   <details id="entrada-manual">
-    <summary>¿La cámara no funciona? Teclea el código</summary>
+    <summary>¿Sin pistola? Teclea el código</summary>
     <div class="fila-manual">
       <input type="text" id="input-manual" placeholder="Código" autocomplete="off" autocapitalize="characters">
       <button id="btn-manual" class="btn-primario">OK</button>
@@ -60,6 +59,7 @@
   <div id="resultado-titulo"></div>
   <div id="resultado-detalle"></div>
   <button id="btn-otro" class="btn-grande">ESCANEAR OTRO ROLLO</button>
+  <p id="resultado-hint">o dispara directamente al siguiente rollo</p>
 </div>
 
 <!-- ============ PANTALLA DE ADMINISTRACIÓN ============ -->
@@ -97,15 +97,24 @@
     <div id="tab-sync" class="tab-panel">
       <p class="info-config">Configuración versión <b id="sync-version"></b> — actualizada <b id="sync-fecha"></b></p>
 
-      <h3>📤 Compartir a otros celulares</h3>
-      <p>Genera un QR y que los demás lo escaneen desde su app (Admin → Sincronizar → Recibir).</p>
-      <button id="btn-generar-qr" class="btn-grande btn-primario">Generar QR de configuración</button>
-      <div id="contenedor-qr-sync" class="oculto"></div>
-      <p id="aviso-qr-grande" class="texto-error oculto"></p>
+      <h3>📤 Compartir a otras PCs</h3>
+      <p>Genera el código y pásalo a las demás PCs (correo, Teams, USB...). En la otra PC se pega en "Recibir".</p>
+      <button id="btn-generar-codigo" class="btn-grande btn-primario">Generar código de configuración</button>
+      <div id="contenedor-codigo-sync" class="oculto">
+        <textarea id="texto-codigo-sync" readonly rows="4"></textarea>
+        <button id="btn-copiar-codigo" class="btn-secundario">📋 Copiar al portapapeles</button>
+      </div>
 
       <h3>📥 Recibir configuración</h3>
-      <button id="btn-recibir-qr" class="btn-grande">📷 Escanear QR de otro celular</button>
-      <div id="lector-sync" class="oculto"></div>
+      <p>Pega aquí el código de otra PC (empieza con <code>PKYK1:</code>) y aplica.</p>
+      <textarea id="texto-recibir-sync" rows="4" placeholder="PKYK1:..."></textarea>
+      <button id="btn-aplicar-codigo" class="btn-secundario">Aplicar configuración</button>
+
+      <h3>🔳 QR para pistolas 2D</h3>
+      <p>Si tu pistola lee QR: muestra este QR y dispárale desde la otra PC — la app lo detecta sola en cualquier pantalla.</p>
+      <button id="btn-generar-qr" class="btn-grande">Mostrar QR de configuración</button>
+      <div id="contenedor-qr-sync" class="oculto"></div>
+      <p id="aviso-qr-grande" class="texto-error oculto"></p>
 
       <h3>📄 Respaldo en archivo</h3>
       <div class="fila-botones">
@@ -142,11 +151,7 @@
     <h3 id="modal-titulo"></h3>
 
     <label>Código <span id="modal-hint-codigo"></span></label>
-    <div class="fila-manual">
-      <input type="text" id="modal-codigo" autocomplete="off" autocapitalize="characters">
-      <button id="modal-btn-escanear" title="Llenar con la cámara">📷</button>
-    </div>
-    <div id="modal-lector" class="oculto"></div>
+    <input type="text" id="modal-codigo" autocomplete="off" autocapitalize="characters" placeholder="Teclea o dispara la pistola con el cursor aquí">
 
     <label>Descripción / Nombre</label>
     <input type="text" id="modal-descripcion" autocomplete="off">
@@ -172,7 +177,6 @@
 <!-- ============ TOAST ============ -->
 <div id="toast" class="oculto"></div>
 
-<script src="js/lib/html5-qrcode.min.js"></script>
 <script src="js/lib/qrcode.min.js"></script>
 <script src="js/lib/lz-string.min.js"></script>
 <script src="js/datos.js"></script>
