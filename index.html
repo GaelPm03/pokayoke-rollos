@@ -84,6 +84,7 @@
   <div id="admin-contenido" class="oculto">
     <nav id="admin-tabs">
       <button class="tab activa" data-tab="tab-materiales">Materiales</button>
+      <button class="tab" data-tab="tab-grupos">Grupos</button>
       <button class="tab" data-tab="tab-estaciones">Líneas</button>
       <button class="tab" data-tab="tab-sync">Sincronizar</button>
       <button class="tab" data-tab="tab-ajustes">Ajustes</button>
@@ -92,6 +93,12 @@
     <div id="tab-materiales" class="tab-panel activa">
       <button id="btn-nuevo-material" class="btn-grande btn-primario">＋ Agregar material</button>
       <ul id="lista-materiales" class="lista-admin"></ul>
+    </div>
+
+    <div id="tab-grupos" class="tab-panel">
+      <p class="info-config">Un grupo es como una carpeta: todos los materiales del grupo heredan sus líneas automáticamente.</p>
+      <button id="btn-nuevo-grupo" class="btn-grande btn-primario">＋ Agregar grupo</button>
+      <ul id="lista-grupos" class="lista-admin"></ul>
     </div>
 
     <div id="tab-estaciones" class="tab-panel">
@@ -158,8 +165,10 @@
     <label>Código <span id="modal-hint-codigo"></span></label>
     <input type="text" id="modal-codigo" autocomplete="off" autocapitalize="characters" placeholder="Teclea o dispara la pistola con el cursor aquí">
 
-    <label>Descripción / Nombre</label>
-    <input type="text" id="modal-descripcion" autocomplete="off">
+    <div id="modal-bloque-descripcion">
+      <label>Descripción / Nombre</label>
+      <input type="text" id="modal-descripcion" autocomplete="off">
+    </div>
 
     <div id="modal-solo-material">
       <label>Tipo de coincidencia</label>
@@ -167,7 +176,12 @@
         <option value="exacto">Código exacto</option>
         <option value="prefijo">Prefijo (el rollo EMPIEZA con este código)</option>
       </select>
-      <label>Líneas autorizadas</label>
+      <label>Grupo (hereda las líneas del grupo)</label>
+      <select id="modal-grupo"></select>
+    </div>
+
+    <div id="modal-lineas-bloque">
+      <label id="modal-label-lineas">Líneas autorizadas</label>
       <div id="modal-estaciones" class="lista-checkboxes"></div>
     </div>
 

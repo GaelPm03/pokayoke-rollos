@@ -310,8 +310,25 @@
   /* ================== Admin: render de listas ================== */
   function renderAdmin() {
     renderMateriales();
+    renderGrupos();
     renderEstaciones();
     renderSyncInfo();
+  }
+
+  function renderGrupos() {
+    const ul = $('lista-grupos');
+    ul.innerHTML = '';
+    const grupos = Datos.config.grupos;
+    if (!grupos.length) { ul.innerHTML = '<li class="lista-vacia">Sin grupos. Crea el primero ☝️</li>'; return; }
+    grupos.forEach(g => {
+      const li = document.createElement('li');
+      const nMat = Datos.config.materiales.filter(m => Datos.normalizar(m.grupo) === Datos.normalizar(g.nombre)).length;
+      const ests = (g.estaciones || []).length ? g.estaciones.join(', ') : '⚠️ sin líneas';
+      li.innerHTML = `<div class="item-codigo">📁 ${g.nombre}</div>
+        <div class="item-detalle">${nMat} material(es) → ${ests}</div>`;
+      li.addEventListener('click', () => abrirModal('grupo', g.nombre));
+      ul.appendChild(li);
+    });
   }
 
   function renderMateriales() {
@@ -321,8 +338,10 @@
     if (!mats.length) { ul.innerHTML = '<li class="lista-vacia">Sin materiales. Agrega el primero ☝️</li>'; return; }
     mats.forEach(m => {
       const li = document.createElement('li');
-      const tag = m.tipoCoincidencia === 'prefijo' ? '<span class="item-tag">PREFIJO</span>' : '';
-      const ests = m.estaciones.length ? m.estaciones.join(', ') : '⚠️ sin líneas';
+      let tag = m.tipoCoincidencia === 'prefijo' ? '<span class="item-tag">PREFIJO</span>' : '';
+      if (m.grupo) tag += `<span class="item-tag">📁 ${m.grupo}</span>`;
+      const efectivas = Datos.estacionesDeMaterial(m);
+      const ests = efectivas.length ? efectivas.join(', ') : '⚠️ sin líneas';
       li.innerHTML = `<div class="item-codigo">${m.codigo}${tag}</div>
         <div class="item-detalle">${m.descripcion || '(sin descripción)'} → ${ests}</div>`;
       li.addEventListener('click', () => abrirModal('material', m.codigo));
@@ -350,18 +369,37 @@
     $('sync-fecha').textContent = Datos.config.actualizado || '—';
   }
 
-  /* ================== Modal material / estación ================== */
+  /* ================== Modal material / línea / grupo ================== */
+  function renderCheckboxesLineas(marcadas) {
+    const cont = $('modal-estaciones');
+    cont.innerHTML = '';
+    if (!Datos.config.estaciones.length) {
+      cont.innerHTML = '<p class="lista-vacia">Primero registra líneas en la pestaña "Líneas".</p>';
+      return;
+    }
+    const set = (marcadas || []).map(Datos.normalizar);
+    Datos.config.estaciones.forEach(e => {
+      const marcado = set.includes(Datos.normalizar(e.codigo));
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="checkbox" value="${e.codigo}" ${marcado ? 'checked' : ''}> ${e.codigo} ${e.nombre ? '— ' + e.nombre : ''}`;
+      cont.appendChild(label);
+    });
+  }
+
   function abrirModal(tipo, codigoOriginal) {
     modalContexto = { tipo, codigoOriginal: codigoOriginal || null };
     $('modal-fondo').classList.remove('oculto');
     $('modal-codigo').value = '';
     $('modal-descripcion').value = '';
     $('modal-btn-eliminar').classList.toggle('oculto', !codigoOriginal);
+    $('modal-bloque-descripcion').classList.toggle('oculto', tipo === 'grupo');
+    $('modal-solo-material').classList.toggle('oculto', tipo !== 'material');
+    $('modal-lineas-bloque').classList.toggle('oculto', tipo === 'estacion');
 
     if (tipo === 'material') {
       $('modal-titulo').textContent = codigoOriginal ? 'Editar material' : 'Nuevo material';
       $('modal-hint-codigo').textContent = '(del rollo)';
-      $('modal-solo-material').classList.remove('oculto');
+      $('modal-label-lineas').textContent = 'Líneas autorizadas (además de las del grupo)';
       const m = codigoOriginal ? Datos.buscarMaterialPorCodigoExacto(codigoOriginal) : null;
       if (m) {
         $('modal-codigo').value = m.codigo;
@@ -370,22 +408,27 @@
       } else {
         $('modal-coincidencia').value = 'exacto';
       }
-      // checkboxes de estaciones
-      const cont = $('modal-estaciones');
-      cont.innerHTML = '';
-      if (!Datos.config.estaciones.length) {
-        cont.innerHTML = '<p class="lista-vacia">Primero registra líneas en la pestaña "Líneas".</p>';
-      }
-      Datos.config.estaciones.forEach(e => {
-        const marcado = m && m.estaciones.map(Datos.normalizar).includes(Datos.normalizar(e.codigo));
-        const label = document.createElement('label');
-        label.innerHTML = `<input type="checkbox" value="${e.codigo}" ${marcado ? 'checked' : ''}> ${e.codigo} ${e.nombre ? '— ' + e.nombre : ''}`;
-        cont.appendChild(label);
+      // select de grupo
+      const sel = $('modal-grupo');
+      sel.innerHTML = '<option value="">(Sin grupo)</option>';
+      Datos.config.grupos.forEach(g => {
+        const op = document.createElement('option');
+        op.value = g.nombre;
+        op.textContent = `📁 ${g.nombre}` + ((g.estaciones || []).length ? ` → ${g.estaciones.join(', ')}` : '');
+        sel.appendChild(op);
       });
+      sel.value = (m && m.grupo) || '';
+      renderCheckboxesLineas(m ? m.estaciones : []);
+    } else if (tipo === 'grupo') {
+      $('modal-titulo').textContent = codigoOriginal ? 'Editar grupo' : 'Nuevo grupo';
+      $('modal-hint-codigo').textContent = '(nombre del grupo)';
+      $('modal-label-lineas').textContent = 'Líneas del grupo (las heredan todos sus materiales)';
+      const g = codigoOriginal ? Datos.buscarGrupo(codigoOriginal) : null;
+      if (g) $('modal-codigo').value = g.nombre;
+      renderCheckboxesLineas(g ? g.estaciones : []);
     } else {
       $('modal-titulo').textContent = codigoOriginal ? 'Editar línea' : 'Nueva línea';
       $('modal-hint-codigo').textContent = '(de la línea)';
-      $('modal-solo-material').classList.add('oculto');
       const e = codigoOriginal ? Datos.buscarEstacion(codigoOriginal) : null;
       if (e) {
         $('modal-codigo').value = e.codigo;
@@ -404,13 +447,19 @@
   function guardarModal() {
     if (!modalContexto) return;
     let res;
+    const lineasMarcadas = Array.from(document.querySelectorAll('#modal-estaciones input:checked')).map(c => c.value);
     if (modalContexto.tipo === 'material') {
-      const estaciones = Array.from(document.querySelectorAll('#modal-estaciones input:checked')).map(c => c.value);
       res = Datos.guardarMaterial(modalContexto.codigoOriginal, {
         codigo: $('modal-codigo').value,
         descripcion: $('modal-descripcion').value.trim(),
         tipoCoincidencia: $('modal-coincidencia').value,
-        estaciones
+        grupo: $('modal-grupo').value,
+        estaciones: lineasMarcadas
+      });
+    } else if (modalContexto.tipo === 'grupo') {
+      res = Datos.guardarGrupo(modalContexto.codigoOriginal, {
+        nombre: $('modal-codigo').value,
+        estaciones: lineasMarcadas
       });
     } else {
       res = Datos.guardarEstacion(modalContexto.codigoOriginal, {
@@ -428,6 +477,7 @@
     if (!modalContexto || !modalContexto.codigoOriginal) return;
     if (!confirm('¿Eliminar definitivamente?')) return;
     if (modalContexto.tipo === 'material') Datos.eliminarMaterial(modalContexto.codigoOriginal);
+    else if (modalContexto.tipo === 'grupo') Datos.eliminarGrupo(modalContexto.codigoOriginal);
     else Datos.eliminarEstacion(modalContexto.codigoOriginal);
     cerrarModal();
     renderAdmin();
@@ -560,6 +610,7 @@
     document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => cambiarTab(t.dataset.tab)));
     $('btn-nuevo-material').addEventListener('click', () => abrirModal('material', null));
     $('btn-nueva-estacion').addEventListener('click', () => abrirModal('estacion', null));
+    $('btn-nuevo-grupo').addEventListener('click', () => abrirModal('grupo', null));
 
     // modal
     $('modal-btn-cancelar').addEventListener('click', cerrarModal);

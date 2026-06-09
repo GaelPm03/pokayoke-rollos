@@ -10,7 +10,7 @@ const Datos = (() => {
   const PREFIJO_SYNC = 'PKYK1:'; // marca los QR de sincronización de esta app
 
   function configVacia() {
-    return { version: 1, actualizado: new Date().toISOString().slice(0, 10), materiales: [], estaciones: [] };
+    return { version: 1, actualizado: new Date().toISOString().slice(0, 10), materiales: [], estaciones: [], grupos: [] };
   }
 
   function cargarConfig() {
@@ -19,6 +19,7 @@ const Datos = (() => {
       if (!crudo) return configVacia();
       const cfg = JSON.parse(crudo);
       if (!Array.isArray(cfg.materiales) || !Array.isArray(cfg.estaciones)) return configVacia();
+      if (!Array.isArray(cfg.grupos)) cfg.grupos = []; // configs viejas sin grupos
       return cfg;
     } catch (e) {
       return configVacia();
@@ -53,10 +54,13 @@ const Datos = (() => {
     if (codigoOriginal) {
       const est = buscarEstacion(codigoOriginal);
       if (est) {
-        // actualizar referencias en materiales si cambió el código
+        // actualizar referencias en materiales y grupos si cambió el código
         if (normalizar(codigoOriginal) !== codigo) {
           config.materiales.forEach(m => {
             m.estaciones = m.estaciones.map(c => normalizar(c) === normalizar(codigoOriginal) ? codigo : c);
+          });
+          config.grupos.forEach(g => {
+            g.estaciones = (g.estaciones || []).map(c => normalizar(c) === normalizar(codigoOriginal) ? codigo : c);
           });
         }
         est.codigo = codigo;
@@ -74,7 +78,57 @@ const Datos = (() => {
     const c = normalizar(codigo);
     config.estaciones = config.estaciones.filter(e => normalizar(e.codigo) !== c);
     config.materiales.forEach(m => { m.estaciones = m.estaciones.filter(x => normalizar(x) !== c); });
+    config.grupos.forEach(g => { g.estaciones = (g.estaciones || []).filter(x => normalizar(x) !== c); });
     guardar();
+  }
+
+  /* ---- Grupos (familias de materiales: todos heredan las líneas del grupo) ---- */
+  function buscarGrupo(nombre) {
+    const n = normalizar(nombre);
+    return config.grupos.find(g => normalizar(g.nombre) === n) || null;
+  }
+
+  function guardarGrupo(nombreOriginal, datos) {
+    const nombre = String(datos.nombre || '').trim();
+    if (!nombre) return { ok: false, error: 'El nombre del grupo no puede estar vacío' };
+    const existente = buscarGrupo(nombre);
+    if (existente && normalizar(nombreOriginal) !== normalizar(nombre)) {
+      return { ok: false, error: 'Ya existe un grupo con ese nombre' };
+    }
+    const estaciones = (datos.estaciones || []).map(normalizar);
+    if (nombreOriginal) {
+      const g = buscarGrupo(nombreOriginal);
+      if (g) {
+        // actualizar referencia en materiales si cambió el nombre
+        if (normalizar(nombreOriginal) !== normalizar(nombre)) {
+          config.materiales.forEach(m => {
+            if (normalizar(m.grupo) === normalizar(nombreOriginal)) m.grupo = nombre;
+          });
+        }
+        g.nombre = nombre;
+        g.estaciones = estaciones;
+        guardar();
+        return { ok: true };
+      }
+    }
+    config.grupos.push({ nombre, estaciones });
+    guardar();
+    return { ok: true };
+  }
+
+  function eliminarGrupo(nombre) {
+    const n = normalizar(nombre);
+    config.grupos = config.grupos.filter(g => normalizar(g.nombre) !== n);
+    config.materiales.forEach(m => { if (normalizar(m.grupo) === n) delete m.grupo; });
+    guardar();
+  }
+
+  // Líneas efectivas de un material: las suyas + las de su grupo
+  function estacionesDeMaterial(material) {
+    const propias = (material.estaciones || []).map(normalizar);
+    const g = material.grupo ? buscarGrupo(material.grupo) : null;
+    const delGrupo = g ? (g.estaciones || []).map(normalizar) : [];
+    return Array.from(new Set([...propias, ...delGrupo]));
   }
 
   /* ---- Materiales ---- */
@@ -108,6 +162,7 @@ const Datos = (() => {
       descripcion: datos.descripcion || '',
       estaciones: (datos.estaciones || []).map(normalizar)
     };
+    if (datos.grupo && buscarGrupo(datos.grupo)) nuevo.grupo = buscarGrupo(datos.grupo).nombre;
     if (codigoOriginal) {
       const idx = config.materiales.findIndex(m => normalizar(m.codigo) === normalizar(codigoOriginal));
       if (idx >= 0) { config.materiales[idx] = nuevo; guardar(); return { ok: true }; }
@@ -128,9 +183,9 @@ const Datos = (() => {
   function validar(codigoRollo, codigoEstacion) {
     const material = buscarMaterialParaRollo(codigoRollo);
     if (!material) return { resultado: 'rollo_desconocido', material: null, estacionesPermitidas: [] };
-    const permitidas = material.estaciones.map(normalizar);
+    const permitidas = estacionesDeMaterial(material); // incluye las líneas heredadas del grupo
     const ok = permitidas.includes(normalizar(codigoEstacion));
-    return { resultado: ok ? 'ok' : 'error', material, estacionesPermitidas: material.estaciones };
+    return { resultado: ok ? 'ok' : 'error', material, estacionesPermitidas: permitidas };
   }
 
   // Clasifica un código escaneado: ¿es estación, rollo conocido, o desconocido?
@@ -177,6 +232,7 @@ const Datos = (() => {
       const json = LZString.decompressFromEncodedURIComponent(texto.slice(PREFIJO_SYNC.length));
       const cfg = JSON.parse(json);
       if (!Array.isArray(cfg.materiales) || !Array.isArray(cfg.estaciones)) throw new Error('estructura inválida');
+      if (!Array.isArray(cfg.grupos)) cfg.grupos = []; // configs de versiones anteriores
       const versionAnterior = config.version || 0;
       config = cfg;
       localStorage.setItem(CLAVE_CONFIG, JSON.stringify(config));
@@ -187,13 +243,14 @@ const Datos = (() => {
   }
 
   /* ---- CSV ---- */
-  // Formato: TIPO,CODIGO,COINCIDENCIA,DESCRIPCION,ESTACIONES (separadas por |)
+  // Formato: TIPO,CODIGO,COINCIDENCIA,DESCRIPCION,ESTACIONES (separadas por |),GRUPO
   function exportarCSV() {
-    const lineas = ['TIPO,CODIGO,COINCIDENCIA,DESCRIPCION,ESTACIONES'];
+    const lineas = ['TIPO,CODIGO,COINCIDENCIA,DESCRIPCION,ESTACIONES,GRUPO'];
     const esc = v => '"' + String(v || '').replace(/"/g, '""') + '"';
-    config.estaciones.forEach(e => lineas.push(['ESTACION', esc(e.codigo), '', esc(e.nombre), ''].join(',')));
+    config.estaciones.forEach(e => lineas.push(['ESTACION', esc(e.codigo), '', esc(e.nombre), '', ''].join(',')));
+    config.grupos.forEach(g => lineas.push(['GRUPO', esc(g.nombre), '', '', esc((g.estaciones || []).join('|')), ''].join(',')));
     config.materiales.forEach(m =>
-      lineas.push(['MATERIAL', esc(m.codigo), m.tipoCoincidencia || 'exacto', esc(m.descripcion), esc(m.estaciones.join('|'))].join(','))
+      lineas.push(['MATERIAL', esc(m.codigo), m.tipoCoincidencia || 'exacto', esc(m.descripcion), esc(m.estaciones.join('|')), esc(m.grupo || '')].join(','))
     );
     return lineas.join('\r\n');
   }
@@ -222,22 +279,31 @@ const Datos = (() => {
     let errores = 0;
     lineas.forEach((linea, i) => {
       if (i === 0 && /^TIPO/i.test(linea)) return; // encabezado
-      const [tipo, codigo, coincidencia, descripcion, estaciones] = parsearLineaCSV(linea);
+      const [tipo, codigo, coincidencia, descripcion, estaciones, grupo] = parsearLineaCSV(linea);
       const t = normalizar(tipo);
-      if (t === 'ESTACION' || t === 'ESTACIÓN') {
+      if (t === 'ESTACION' || t === 'ESTACIÓN' || t === 'LINEA' || t === 'LÍNEA') {
         if (normalizar(codigo)) nuevaCfg.estaciones.push({ codigo: normalizar(codigo), nombre: (descripcion || '').trim() });
         else errores++;
-      } else if (t === 'MATERIAL') {
-        if (normalizar(codigo)) nuevaCfg.materiales.push({
-          codigo: normalizar(codigo),
-          tipoCoincidencia: normalizar(coincidencia) === 'PREFIJO' ? 'prefijo' : 'exacto',
-          descripcion: (descripcion || '').trim(),
+      } else if (t === 'GRUPO') {
+        if (String(codigo || '').trim()) nuevaCfg.grupos.push({
+          nombre: String(codigo).trim(),
           estaciones: String(estaciones || '').split('|').map(normalizar).filter(Boolean)
         });
         else errores++;
+      } else if (t === 'MATERIAL') {
+        if (normalizar(codigo)) {
+          const m = {
+            codigo: normalizar(codigo),
+            tipoCoincidencia: normalizar(coincidencia) === 'PREFIJO' ? 'prefijo' : 'exacto',
+            descripcion: (descripcion || '').trim(),
+            estaciones: String(estaciones || '').split('|').map(normalizar).filter(Boolean)
+          };
+          if (String(grupo || '').trim()) m.grupo = String(grupo).trim();
+          nuevaCfg.materiales.push(m);
+        } else errores++;
       } else errores++;
     });
-    if (!nuevaCfg.materiales.length && !nuevaCfg.estaciones.length) {
+    if (!nuevaCfg.materiales.length && !nuevaCfg.estaciones.length && !nuevaCfg.grupos.length) {
       return { ok: false, error: 'No se encontraron datos válidos en el archivo' };
     }
     nuevaCfg.version = (config.version || 0) + 1;
@@ -256,6 +322,7 @@ const Datos = (() => {
     get config() { return config; },
     normalizar,
     buscarEstacion, guardarEstacion, eliminarEstacion,
+    buscarGrupo, guardarGrupo, eliminarGrupo, estacionesDeMaterial,
     buscarMaterialPorCodigoExacto, buscarMaterialParaRollo, guardarMaterial, eliminarMaterial,
     validar, clasificarCodigo,
     cargarHistorial, registrarEscaneo, borrarHistorial,
