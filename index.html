@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<title>Poka-Yoke Rollos</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="iconos/icono-192.png">
+<link rel="apple-touch-icon" href="iconos/icono-192.png">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ============ BARRA SUPERIOR ============ -->
+<header id="barra-superior">
+  <button id="btn-historial" class="btn-barra" title="Historial">📋</button>
+  <h1 id="titulo-app">POKA-YOKE ROLLOS</h1>
+  <button id="btn-admin" class="btn-barra" title="Administración">⚙️</button>
+</header>
+
+<!-- ============ PANTALLA DE ESCANEO (principal) ============ -->
+<main id="pantalla-escaneo" class="pantalla activa">
+
+  <div id="banner-estacion-fija" class="oculto">
+    <span id="texto-estacion-fija"></span>
+    <button id="btn-soltar-estacion">Cambiar estación</button>
+  </div>
+
+  <div id="indicador-pasos">
+    <div id="paso-1" class="paso activo"><span class="paso-num">1</span> ESTACIÓN</div>
+    <div class="paso-flecha">→</div>
+    <div id="paso-2" class="paso"><span class="paso-num">2</span> ROLLO</div>
+  </div>
+
+  <h2 id="instruccion-escaneo">Escanea el código de la ESTACIÓN</h2>
+
+  <div id="contenedor-lector">
+    <div id="lector"></div>
+    <div id="lector-apagado">
+      <button id="btn-iniciar-camara" class="btn-grande btn-primario">📷 Iniciar cámara</button>
+    </div>
+  </div>
+
+  <div id="aviso-escaneo" class="oculto"></div>
+
+  <details id="entrada-manual">
+    <summary>¿La cámara no funciona? Teclea el código</summary>
+    <div class="fila-manual">
+      <input type="text" id="input-manual" placeholder="Código" autocomplete="off" autocapitalize="characters">
+      <button id="btn-manual" class="btn-primario">OK</button>
+    </div>
+  </details>
+
+</main>
+
+<!-- ============ PANTALLA DE RESULTADO (overlay a pantalla completa) ============ -->
+<div id="pantalla-resultado" class="oculto">
+  <div id="resultado-icono"></div>
+  <div id="resultado-titulo"></div>
+  <div id="resultado-detalle"></div>
+  <button id="btn-otro" class="btn-grande">ESCANEAR OTRO ROLLO</button>
+</div>
+
+<!-- ============ PANTALLA DE ADMINISTRACIÓN ============ -->
+<section id="pantalla-admin" class="pantalla">
+
+  <!-- Candado PIN -->
+  <div id="admin-candado">
+    <h2>🔒 Administración</h2>
+    <p>Ingresa el PIN de supervisor</p>
+    <input type="password" id="input-pin" inputmode="numeric" maxlength="8" placeholder="PIN">
+    <button id="btn-entrar-admin" class="btn-grande btn-primario">Entrar</button>
+    <p id="error-pin" class="texto-error oculto">PIN incorrecto</p>
+    <button id="btn-volver-1" class="btn-secundario">← Volver al escaneo</button>
+  </div>
+
+  <!-- Contenido admin -->
+  <div id="admin-contenido" class="oculto">
+    <nav id="admin-tabs">
+      <button class="tab activa" data-tab="tab-materiales">Materiales</button>
+      <button class="tab" data-tab="tab-estaciones">Estaciones</button>
+      <button class="tab" data-tab="tab-sync">Sincronizar</button>
+      <button class="tab" data-tab="tab-ajustes">Ajustes</button>
+    </nav>
+
+    <div id="tab-materiales" class="tab-panel activa">
+      <button id="btn-nuevo-material" class="btn-grande btn-primario">＋ Agregar material</button>
+      <ul id="lista-materiales" class="lista-admin"></ul>
+    </div>
+
+    <div id="tab-estaciones" class="tab-panel">
+      <button id="btn-nueva-estacion" class="btn-grande btn-primario">＋ Agregar estación</button>
+      <ul id="lista-estaciones" class="lista-admin"></ul>
+    </div>
+
+    <div id="tab-sync" class="tab-panel">
+      <p class="info-config">Configuración versión <b id="sync-version"></b> — actualizada <b id="sync-fecha"></b></p>
+
+      <h3>📤 Compartir a otros celulares</h3>
+      <p>Genera un QR y que los demás lo escaneen desde su app (Admin → Sincronizar → Recibir).</p>
+      <button id="btn-generar-qr" class="btn-grande btn-primario">Generar QR de configuración</button>
+      <div id="contenedor-qr-sync" class="oculto"></div>
+      <p id="aviso-qr-grande" class="texto-error oculto"></p>
+
+      <h3>📥 Recibir configuración</h3>
+      <button id="btn-recibir-qr" class="btn-grande">📷 Escanear QR de otro celular</button>
+      <div id="lector-sync" class="oculto"></div>
+
+      <h3>📄 Respaldo en archivo</h3>
+      <div class="fila-botones">
+        <button id="btn-exportar-csv" class="btn-secundario">Exportar CSV</button>
+        <button id="btn-importar-csv" class="btn-secundario">Importar CSV</button>
+        <input type="file" id="input-csv" accept=".csv,text/csv" class="oculto">
+      </div>
+    </div>
+
+    <div id="tab-ajustes" class="tab-panel">
+      <h3>Cambiar PIN</h3>
+      <input type="password" id="input-pin-nuevo" inputmode="numeric" maxlength="8" placeholder="Nuevo PIN (4-8 dígitos)">
+      <button id="btn-cambiar-pin" class="btn-secundario">Guardar PIN</button>
+      <h3>Datos</h3>
+      <button id="btn-borrar-historial" class="btn-secundario">Borrar historial de escaneos</button>
+      <button id="btn-borrar-todo" class="btn-peligro">⚠️ Borrar TODA la configuración</button>
+    </div>
+
+    <button id="btn-volver-2" class="btn-grande">← Volver al escaneo</button>
+  </div>
+</section>
+
+<!-- ============ PANTALLA DE HISTORIAL ============ -->
+<section id="pantalla-historial" class="pantalla">
+  <h2>📋 Historial de escaneos</h2>
+  <button id="btn-exportar-historial" class="btn-secundario">Exportar CSV</button>
+  <ul id="lista-historial"></ul>
+  <button id="btn-volver-3" class="btn-grande">← Volver al escaneo</button>
+</section>
+
+<!-- ============ MODAL EDITAR MATERIAL / ESTACIÓN ============ -->
+<div id="modal-fondo" class="oculto">
+  <div id="modal">
+    <h3 id="modal-titulo"></h3>
+
+    <label>Código <span id="modal-hint-codigo"></span></label>
+    <div class="fila-manual">
+      <input type="text" id="modal-codigo" autocomplete="off" autocapitalize="characters">
+      <button id="modal-btn-escanear" title="Llenar con la cámara">📷</button>
+    </div>
+    <div id="modal-lector" class="oculto"></div>
+
+    <label>Descripción / Nombre</label>
+    <input type="text" id="modal-descripcion" autocomplete="off">
+
+    <div id="modal-solo-material">
+      <label>Tipo de coincidencia</label>
+      <select id="modal-coincidencia">
+        <option value="exacto">Código exacto</option>
+        <option value="prefijo">Prefijo (el rollo EMPIEZA con este código)</option>
+      </select>
+      <label>Estaciones autorizadas</label>
+      <div id="modal-estaciones" class="lista-checkboxes"></div>
+    </div>
+
+    <div class="fila-botones">
+      <button id="modal-btn-cancelar" class="btn-secundario">Cancelar</button>
+      <button id="modal-btn-guardar" class="btn-primario">Guardar</button>
+    </div>
+    <button id="modal-btn-eliminar" class="btn-peligro oculto">Eliminar</button>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="oculto"></div>
+
+<script src="js/lib/html5-qrcode.min.js"></script>
+<script src="js/lib/qrcode.min.js"></script>
+<script src="js/lib/lz-string.min.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
