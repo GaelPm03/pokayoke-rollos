@@ -1,5 +1,5 @@
 /* Service Worker: cachea toda la app para funcionar 100% offline */
-const CACHE = 'pokayoke-v1';
+const CACHE = 'pokayoke-v2';
 const ARCHIVOS = [
   './',
   './index.html',

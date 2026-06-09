@@ -58,12 +58,35 @@
   }
 
   /* ================== Lector principal ================== */
-  const CONFIG_LECTOR = { fps: 10, qrbox: { width: 260, height: 180 } };
+  // Zona de escaneo ancha (rectángulo): mejor para códigos de barras 1D
+  function calcularQrbox(anchoVista, altoVista) {
+    const ancho = Math.floor(Math.min(anchoVista * 0.9, 500));
+    const alto = Math.floor(Math.min(altoVista * 0.45, 220));
+    return { width: ancho, height: alto };
+  }
+
+  const CONFIG_LECTOR = {
+    fps: 15,
+    qrbox: calcularQrbox,
+    // mayor resolución + enfoque continuo = lecturas nítidas
+    videoConstraints: {
+      facingMode: 'environment',
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      advanced: [{ focusMode: 'continuous' }]
+    }
+  };
+
+  // usa el detector de códigos NATIVO del celular si existe (mucho más preciso)
+  const OPCIONES_HTML5QR = {
+    verbose: false,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+  };
 
   function iniciarLectorPrincipal() {
     if (lectorPrincipal) return;
     $('lector-apagado').classList.add('oculto');
-    lectorPrincipal = new Html5Qrcode('lector');
+    lectorPrincipal = new Html5Qrcode('lector', OPCIONES_HTML5QR);
     lectorPrincipal.start(
       { facingMode: 'environment' },
       CONFIG_LECTOR,
@@ -112,11 +135,26 @@
     setTimeout(() => av.classList.add('oculto'), 4000);
   }
 
+  // Confirmación de doble lectura: el mismo código debe leerse 2 veces seguidas
+  // en menos de 1.5 s antes de aceptarse — descarta lecturas parciales/borrosas
+  let candidato = '';
+  let candidatoTiempo = 0;
+
   function onCodigoEscaneado(texto) {
-    // anti-rebote: ignora lecturas repetidas del mismo código por 2.5 s
     const ahora = Date.now();
     if (procesando) return;
+    // anti-rebote: ignora el código recién procesado por 2.5 s
     if (texto === ultimoCodigo && ahora - ultimoTiempo < 2500) return;
+
+    if (texto !== candidato || ahora - candidatoTiempo > 1500) {
+      // primera lectura: queda como candidato a confirmar
+      candidato = texto;
+      candidatoTiempo = ahora;
+      return;
+    }
+
+    // segunda lectura idéntica: confirmado
+    candidato = '';
     ultimoCodigo = texto;
     ultimoTiempo = ahora;
     procesarCodigo(texto);
@@ -377,7 +415,7 @@
   function escanearEnModal() {
     if (lectorModal) { detenerLectorModal(); return; }
     $('modal-lector').classList.remove('oculto');
-    lectorModal = new Html5Qrcode('modal-lector');
+    lectorModal = new Html5Qrcode('modal-lector', OPCIONES_HTML5QR);
     lectorModal.start({ facingMode: 'environment' }, CONFIG_LECTOR, texto => {
       $('modal-codigo').value = Datos.normalizar(texto);
       vibrar(80);
@@ -418,8 +456,13 @@
   function recibirQRSync() {
     if (lectorSync) { detenerLectorSync(); return; }
     $('lector-sync').classList.remove('oculto');
-    lectorSync = new Html5Qrcode('lector-sync');
-    lectorSync.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 260 } }, texto => {
+    lectorSync = new Html5Qrcode('lector-sync', OPCIONES_HTML5QR);
+    // el QR de configuración es denso: zona cuadrada grande + alta resolución
+    lectorSync.start({ facingMode: 'environment' }, {
+      fps: 15,
+      qrbox: (w, h) => { const lado = Math.floor(Math.min(w, h) * 0.8); return { width: lado, height: lado }; },
+      videoConstraints: CONFIG_LECTOR.videoConstraints
+    }, texto => {
       const res = Datos.importarDeQR(texto);
       if (res.ok) {
         detenerLectorSync();
