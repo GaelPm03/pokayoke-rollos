@@ -1,5 +1,5 @@
 /* Service Worker: cachea toda la app para funcionar 100% offline */
-const CACHE = 'pokayoke-v6';
+const CACHE = 'pokayoke-v7';
 const ARCHIVOS = [
   './',
   './index.html',
@@ -15,7 +15,13 @@ const ARCHIVOS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
+  // cache: 'reload' = baja copias frescas del servidor, sin pasar por el cache HTTP
+  // (si no, una actualización podría quedarse con archivos viejos)
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(ARCHIVOS.map(u => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {

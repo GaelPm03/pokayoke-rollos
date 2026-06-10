@@ -1,4 +1,4 @@
-# Poka-Yoke Rollos 🔫✅
+# Poka-Yoke Rollos
 
 App web para PC + **escáner de pistola**: el operador valida que un **rollo** va en la **estación** correcta. Verde = correcto, Rojo = no colocar.
 

@@ -167,7 +167,7 @@ html, body {
   padding: 24px;
   transition: background 0.15s, border-color 0.15s;
 }
-#zona-icono { font-size: 4rem; line-height: 1; }
+#zona-icono { color: var(--primario); line-height: 1; opacity: 0.9; }
 #zona-texto { font-size: 1.5rem; font-weight: 800; }
 #zona-sub { color: var(--texto-suave); font-size: 1.05rem; }
 #zona-escaneo.lectura {
