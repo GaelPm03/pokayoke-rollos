@@ -1,11 +1,12 @@
 /* Service Worker: cachea toda la app para funcionar 100% offline */
-const CACHE = 'pokayoke-v5';
+const CACHE = 'pokayoke-v6';
 const ARCHIVOS = [
   './',
   './index.html',
   './css/styles.css',
   './js/app.js',
   './js/datos.js',
+  './js/bitacora.js',
   './js/lib/qrcode.min.js',
   './js/lib/lz-string.min.js',
   './manifest.json',

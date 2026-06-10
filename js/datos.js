@@ -6,7 +6,7 @@ const Datos = (() => {
   const CLAVE_HISTORIAL = 'pokayoke_historial_v1';
   const CLAVE_PIN = 'pokayoke_pin_v1';
   const PIN_DEFAULT = '1234';
-  const MAX_HISTORIAL = 300;
+  const MAX_HISTORIAL = 5000;
   const PREFIJO_SYNC = 'PKYK1:'; // marca los QR de sincronización de esta app
 
   function configVacia() {

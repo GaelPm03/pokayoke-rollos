@@ -35,6 +35,12 @@ Cualquier escáner USB en modo "teclado" (el de fábrica en casi todas) funciona
 
 Cada configuración lleva número de versión y fecha para saber cuál es la más nueva.
 
+## Bitácora en archivo CSV (recomendado)
+
+En Admin → Ajustes → **Bitácora en archivo**: elige una carpeta de la PC (o de red/OneDrive) **una sola vez**. Desde entonces, cada escaneo se escribe al instante en un CSV mensual (`bitacora-NOMBREPC-2026-06.csv`) que se abre directo en Excel. Sobrevive a limpiezas del navegador. Si la carpeta es compartida/OneDrive, las bitácoras de todas las PCs se concentran solas — ponle "Nombre de esta PC" a cada una para distinguir los archivos. Requiere Chrome o Edge.
+
+La app además guarda los últimos 5,000 escaneos en pantalla (📋 Historial), exportables a CSV.
+
 ## Instalación en cada PC
 
 1. Abrir https://gaelpm03.github.io/pokayoke-rollos/ en Chrome o Edge **una vez con internet**.

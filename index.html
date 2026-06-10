@@ -137,6 +137,18 @@
     </div>
 
     <div id="tab-ajustes" class="tab-panel">
+      <h3>📂 Bitácora en archivo</h3>
+      <p class="info-config">Cada escaneo se escribe al instante en un CSV mensual dentro de la carpeta que elijas (puede ser una carpeta local, de red u OneDrive). Se abre directo en Excel.</p>
+      <p id="bitacora-estado" class="info-config"></p>
+      <div class="fila-botones">
+        <button id="btn-elegir-carpeta" class="btn-secundario">Elegir carpeta…</button>
+        <button id="btn-reactivar-bitacora" class="btn-secundario oculto">🔓 Reactivar permiso</button>
+        <button id="btn-quitar-carpeta" class="btn-secundario oculto">Quitar</button>
+      </div>
+      <label class="info-config" style="display:block;margin-top:12px">Nombre de esta PC (va en el nombre del archivo, útil si la carpeta es compartida)</label>
+      <input type="text" id="input-nombre-pc" placeholder="ej. LINEA-1" autocomplete="off">
+      <button id="btn-guardar-nombre-pc" class="btn-secundario">Guardar nombre</button>
+
       <h3>Cambiar PIN</h3>
       <input type="password" id="input-pin-nuevo" inputmode="numeric" maxlength="8" placeholder="Nuevo PIN (4-8 dígitos)">
       <button id="btn-cambiar-pin" class="btn-secundario">Guardar PIN</button>
@@ -199,6 +211,7 @@
 <script src="js/lib/qrcode.min.js"></script>
 <script src="js/lib/lz-string.min.js"></script>
 <script src="js/datos.js"></script>
+<script src="js/bitacora.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

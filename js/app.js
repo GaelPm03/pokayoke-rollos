@@ -1,5 +1,5 @@
 /* ====== App Poka-Yoke (PC + escáner de pistola): flujo, validación y UI ====== */
-/* global qrcode, Datos */
+/* global qrcode, Datos, Bitacora */
 
 (() => {
   const $ = id => document.getElementById(id);
@@ -231,9 +231,28 @@
   }
 
   /* ================== Pantalla de resultado ================== */
+  // Avisa máx. 1 vez por minuto si la bitácora en archivo está fallando
+  let ultimoAvisoBitacora = 0;
+  function escribirBitacora(registro) {
+    Bitacora.escribir(registro).then(r => {
+      if (r.ok || r.motivo === 'sin_carpeta' || r.motivo === 'no_soportado') return;
+      const ahora = Date.now();
+      if (ahora - ultimoAvisoBitacora < 60000) return;
+      ultimoAvisoBitacora = ahora;
+      if (r.motivo === 'permiso') toast('⚠️ Bitácora en archivo pausada: reactiva el permiso en Admin → Ajustes', 5000);
+      else toast('⚠️ No se pudo escribir la bitácora (¿archivo abierto en Excel?)', 5000);
+    });
+  }
+
   function mostrarResultado(codigoRollo) {
     const v = Datos.validar(codigoRollo, estacionActual.codigo);
     Datos.registrarEscaneo(codigoRollo, estacionActual.codigo, v.resultado);
+    escribirBitacora({
+      fecha: new Date().toISOString(),
+      rollo: Datos.normalizar(codigoRollo),
+      estacion: estacionActual.codigo,
+      resultado: v.resultado
+    });
 
     const pant = $('pantalla-resultado');
     pant.classList.remove('oculto', 'ok', 'error', 'desconocido');
@@ -305,6 +324,35 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('activa', t.dataset.tab === idTab));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('activa', p.id === idTab));
     if (idTab === 'tab-sync') renderSyncInfo();
+    if (idTab === 'tab-ajustes') renderBitacoraEstado();
+  }
+
+  /* ================== Bitácora en archivo: estado y configuración ================== */
+  async function renderBitacoraEstado() {
+    const p = $('bitacora-estado');
+    const btnElegir = $('btn-elegir-carpeta');
+    const btnReactivar = $('btn-reactivar-bitacora');
+    const btnQuitar = $('btn-quitar-carpeta');
+    $('input-nombre-pc').value = Bitacora.nombrePC();
+    const est = await Bitacora.estado();
+    btnReactivar.classList.add('oculto');
+    btnQuitar.classList.add('oculto');
+    if (est === 'no_soportado') {
+      p.textContent = '❌ Tu navegador no soporta esta función. Usa Chrome o Edge.';
+      btnElegir.disabled = true;
+      return;
+    }
+    btnElegir.disabled = false;
+    if (est === 'sin_carpeta') {
+      p.textContent = '⏸️ Sin configurar: los escaneos solo se guardan en el historial de la app.';
+    } else if (est === 'granted') {
+      p.textContent = `✅ Activa — escribiendo en la carpeta "${Bitacora.nombreCarpeta()}".`;
+      btnQuitar.classList.remove('oculto');
+    } else {
+      p.textContent = `⚠️ Carpeta "${Bitacora.nombreCarpeta()}" configurada pero el permiso está pausado.`;
+      btnReactivar.classList.remove('oculto');
+      btnQuitar.classList.remove('oculto');
+    }
   }
 
   /* ================== Admin: render de listas ================== */
@@ -637,6 +685,37 @@
         e.target.value = '';
       };
       lector.readAsText(archivo, 'utf-8');
+    });
+
+    // ajustes: bitácora en archivo
+    $('btn-elegir-carpeta').addEventListener('click', async () => {
+      try {
+        const nombre = await Bitacora.elegirCarpeta();
+        toast(`✓ Bitácora activa en "${nombre}"`);
+      } catch (e) { /* canceló el diálogo */ }
+      renderBitacoraEstado();
+    });
+    $('btn-reactivar-bitacora').addEventListener('click', async () => {
+      const ok = await Bitacora.reactivar();
+      toast(ok ? '✓ Permiso reactivado' : '⚠️ No se pudo reactivar; vuelve a elegir la carpeta');
+      renderBitacoraEstado();
+    });
+    $('btn-quitar-carpeta').addEventListener('click', async () => {
+      if (!confirm('¿Dejar de escribir la bitácora en archivo? (los archivos ya escritos no se borran)')) return;
+      await Bitacora.quitarCarpeta();
+      renderBitacoraEstado();
+    });
+    $('btn-guardar-nombre-pc').addEventListener('click', () => {
+      const limpio = Bitacora.cambiarNombrePC($('input-nombre-pc').value);
+      $('input-nombre-pc').value = limpio;
+      toast(limpio ? `✓ Esta PC se identificará como "${limpio}"` : 'Nombre de PC quitado');
+    });
+
+    // al arrancar: si la bitácora quedó con permiso pausado, avisar
+    Bitacora.estado().then(est => {
+      if (est === 'prompt' || est === 'denied') {
+        toast('⚠️ Bitácora en archivo pausada: reactiva el permiso en Admin → Ajustes', 6000);
+      }
     });
 
     // ajustes
